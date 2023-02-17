@@ -106,16 +106,39 @@ static NSMutableDictionary<NSString *, RNVoipPushNotificationCompletion> *comple
 // ===== Class Method =====
 // =====
 
+// --- Check if event included in _delayedEvents
+- (Boolean)containsDelayedEvents:(NSDictionary *)event {
+    NSString *name = [event valueForKey: @"name"];
+    NSString *data = [event valueForKey: @"data"];
+
+    NSUInteger matchIndex = [_delayedEvents indexOfObjectPassingTest:^BOOL(id delayedEvent, NSUInteger idx, BOOL *stop) {
+        if (
+            [name isEqualToString:[delayedEvent valueForKey: @"name"]] &&
+            [data isEqualToString:[delayedEvent valueForKey: @"data"]]
+        ) {
+            *stop = YES;
+            return YES;
+        }
+        return NO;
+    }];
+
+    return matchIndex != NSNotFound;
+}
+
 // --- send directly if has listeners, cache it otherwise
 - (void)sendEventWithNameWrapper:(NSString *)name body:(id)body {
     if (_hasListeners) {
         [self sendEventWithName:name body:body];
     } else {
-        NSDictionary *dictionary = @{
+        NSDictionary *event = @{
             @"name": name,
             @"data": body
         };
-        [_delayedEvents addObject:dictionary];
+
+        // Avoid event duplicating
+        if (![self containsDelayedEvents: event]) {
+            [_delayedEvents addObject:event];
+        }
     }
 }
 
